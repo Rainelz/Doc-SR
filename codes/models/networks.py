@@ -16,7 +16,7 @@ def define_G(opt):
                                        nf=opt_net['nf'], nb=opt_net['nb'], upscale=opt_net['scale'])
     elif which_model == 'RRDBNet':
         netG = RRDBNet_arch.RRDBNet(in_nc=opt_net['in_nc'], out_nc=opt_net['out_nc'],
-                                    nf=opt_net['nf'], nb=opt_net['nb'])
+                                    nf=opt_net['nf'], nb=opt_net['nb'], upscale=opt_net['scale'])
     # video restoration
     elif which_model == 'EDVR':
         netG = EDVR_arch.EDVR(nf=opt_net['nf'], nframes=opt_net['nframes'],
