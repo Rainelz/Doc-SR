@@ -44,7 +44,7 @@ def parse(opt_path, is_train=True):
             opt['path'][key] = osp.expanduser(path)
     opt['path']['root'] = osp.abspath(osp.join(__file__, osp.pardir, osp.pardir, osp.pardir))
     if is_train:
-        experiments_root = osp.join(opt['path']['root'], 'experiments', opt['name'])
+        experiments_root = opt['path'].get('experiments_root', osp.join(opt['path']['root'], 'experiments', opt['name']))
         opt['path']['experiments_root'] = experiments_root
         opt['path']['models'] = osp.join(experiments_root, 'models')
         opt['path']['training_state'] = osp.join(experiments_root, 'training_state')
