@@ -38,6 +38,7 @@ class Discriminator_VGG_128(nn.Module):
         self.lrelu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
 
     def forward(self, x):
+        #print(x)
         fea = self.lrelu(self.conv0_0(x))
         fea = self.lrelu(self.bn0_1(self.conv0_1(fea)))
 
@@ -60,7 +61,7 @@ class Discriminator_VGG_128(nn.Module):
 
 
 class VGGFeatureExtractor(nn.Module):
-    def __init__(self, feature_layer=34, use_bn=False, use_input_norm=True,
+    def __init__(self, feature_layer=34,in_ch=3, use_bn=False, use_input_norm=True,
                  device=torch.device('cpu')):
         super(VGGFeatureExtractor, self).__init__()
         self.use_input_norm = use_input_norm
@@ -69,10 +70,16 @@ class VGGFeatureExtractor(nn.Module):
         else:
             model = torchvision.models.vgg19(pretrained=True)
         if self.use_input_norm:
-            mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).to(device)
-            # [0.485 - 1, 0.456 - 1, 0.406 - 1] if input in range [-1, 1]
-            std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).to(device)
-            # [0.229 * 2, 0.224 * 2, 0.225 * 2] if input in range [-1, 1]
+            if in_ch == 1:
+                mean = torch.Tensor([0.5, 0.5, 0.5]).view(1, 3, 1, 1).to(device)
+                # [0.485 - 1, 0.456 - 1, 0.406 - 1] if input in range [-1, 1]
+                std = torch.Tensor([0.5, 0.5, 0.5]).view(1, 3, 1, 1).to(device)
+                # [0.229 * 2, 0.224 * 2, 0.225 * 2] if input in range [-1, 1]
+            else:
+                mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).to(device)
+                # [0.485 - 1, 0.456 - 1, 0.406 - 1] if input in range [-1, 1]
+                std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).to(device)
+                # [0.229 * 2, 0.224 * 2, 0.225 * 2] if input in range [-1, 1]
             self.register_buffer('mean', mean)
             self.register_buffer('std', std)
         self.features = nn.Sequential(*list(model.features.children())[:(feature_layer + 1)])
