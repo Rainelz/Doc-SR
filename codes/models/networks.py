@@ -3,7 +3,7 @@ import models.archs.SRResNet_arch as SRResNet_arch
 import models.archs.discriminator_vgg_arch as SRGAN_arch
 import models.archs.RRDBNet_arch as RRDBNet_arch
 import models.archs.EDVR_arch as EDVR_arch
-
+import models.archs.discriminator_effnet as EffNet_arch
 
 # Generator
 def define_G(opt):
@@ -37,6 +37,10 @@ def define_D(opt):
 
     if which_model == 'discriminator_vgg_128':
         netD = SRGAN_arch.Discriminator_VGG_128(in_nc=opt_net['in_nc'], nf=opt_net['nf'])
+    elif 'efficientnet' in which_model:
+        pretrained_path = opt_net.get('pretrained', None)
+        netD = EffNet_arch.Discriminator_EfficientNet(which_model, in_ch=opt_net['in_nc'],
+                                                      pretrained=pretrained_path, drop_fc=True)
     else:
         raise NotImplementedError('Discriminator model [{:s}] not recognized'.format(which_model))
     return netD
@@ -46,12 +50,25 @@ def define_D(opt):
 def define_F(opt, use_bn=False):
     gpu_ids = opt['gpu_ids']
     device = torch.device('cuda' if gpu_ids else 'cpu')
+    opt_net = opt.get('network_F', dict())
+    use_bn = opt_net.get('use_bn', False)
+    use_input_norm = opt_net.get('use_input_norm', True)
+    which_model = opt_net.get('which_model_F', 'VGG')
+    in_ch = opt_net.get('in_nc', 3)
+
+    if which_model == 'VGG':
     # PyTorch pretrained VGG19-54, before ReLU.
-    if use_bn:
-        feature_layer = 49
+        if use_bn:
+            feature_layer = 49
+        else:
+            feature_layer = 34
+        netF = SRGAN_arch.VGGFeatureExtractor(feature_layer=feature_layer, in_ch=in_ch, use_bn=use_bn,
+                                              use_input_norm=use_input_norm, device=device)
+    elif 'efficientnet' in which_model:
+        pretrained = opt_net['pretrained']
+        netF = EffNet_arch.EfficientNetFeatureExtractor(which_model, in_ch=in_ch, pretrained=pretrained,
+                                                        device=device, use_input_norm=use_input_norm)
     else:
-        feature_layer = 34
-    netF = SRGAN_arch.VGGFeatureExtractor(feature_layer=feature_layer, use_bn=use_bn,
-                                          use_input_norm=True, device=device)
+        raise NotImplementedError('Feature extractor model [{:s}] not recognized'.format(which_model))
     netF.eval()  # No need to train
     return netF
