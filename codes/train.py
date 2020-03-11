@@ -78,7 +78,7 @@ def main():
                 logger.info(
                     'You are using PyTorch {}. Tensorboard will use [tensorboardX]'.format(version))
                 from tensorboardX import SummaryWriter
-            tb_logger = SummaryWriter(log_dir='../tb_logger/' + opt['name'])
+            tb_logger = SummaryWriter(log_dir=f"{opt['path']['experiments_root']}/" + 'tb_logger')
     else:
         util.setup_logger('base', opt['path']['log'], 'train', level=logging.INFO, screen=True)
         logger = logging.getLogger('base')
@@ -147,15 +147,17 @@ def main():
         if opt['dist']:
             train_sampler.set_epoch(epoch)
         for _, train_data in enumerate(train_loader):
+            
             current_step += 1
             if current_step > total_iters:
                 break
-            #### update learning rate
-            model.update_learning_rate(current_step, warmup_iter=opt['train']['warmup_iter'])
+
 
             #### training
             model.feed_data(train_data)
             model.optimize_parameters(current_step)
+            #### update learning rate
+            model.update_learning_rate(current_step, warmup_iter=opt['train']['warmup_iter'])
 
             #### log
             if current_step % opt['logger']['print_freq'] == 0:
@@ -180,7 +182,6 @@ def main():
                     avg_psnr = 0.
                     idx = 0
                     for val_data in val_loader:
-                        idx += 1
                         img_name = os.path.splitext(os.path.basename(val_data['LQ_path'][0]))[0]
                         img_dir = os.path.join(opt['path']['val_images'], img_name)
                         util.mkdir(img_dir)
@@ -201,6 +202,8 @@ def main():
                         sr_img, gt_img = util.crop_border([sr_img, gt_img], opt['scale'])
                         avg_psnr += util.calculate_psnr(sr_img, gt_img)
                         pbar.update('Test {}'.format(img_name))
+                        idx += 1
+
 
                     avg_psnr = avg_psnr / idx
 
