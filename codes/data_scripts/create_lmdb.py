@@ -15,7 +15,14 @@ import utils.util as util  # noqa: E402
 
 
 def main():
-    dataset = 'DIV2K_demo'  # vimeo90K | REDS | general (e.g., DIV2K, 291) | DIV2K_demo |test
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data-path", type=str, required=True)
+    parser.add_argument("--out", type=str, required=True)
+    parser.add_argument("--name", type=str, default=None, required=False)
+
+    args = parser.parse_args()
+    dataset = 'general'  # vimeo90K | REDS | general (e.g., DIV2K, 291) | DIV2K_demo |test
     mode = 'GT'  # used for vimeo90k and REDS datasets
     # vimeo90k: GT | LR | flow
     # REDS: train_sharp, train_sharp_bicubic, train_blur_bicubic, train_blur, train_blur_comp
@@ -26,9 +33,9 @@ def main():
         REDS(mode)
     elif dataset == 'general':
         opt = {}
-        opt['img_folder'] = '../../datasets/DIV2K/DIV2K800_sub'
-        opt['lmdb_save_path'] = '../../datasets/DIV2K/DIV2K800_sub.lmdb'
-        opt['name'] = 'DIV2K800_sub_GT'
+        opt['img_folder'] = args.data_path
+        opt['lmdb_save_path'] = args.out + ".lmdb"
+        opt['name'] = args.name or 'general'
         general_image_folder(opt)
     elif dataset == 'DIV2K_demo':
         opt = {}
@@ -69,16 +76,17 @@ def general_image_folder(opt):
     if not lmdb_save_path.endswith('.lmdb'):
         raise ValueError("lmdb_save_path must end with \'lmdb\'.")
     if osp.exists(lmdb_save_path):
-        print('Folder [{:s}] already exists. Exit...'.format(lmdb_save_path))
-        sys.exit(1)
+        print('Folder [{:s}] already exists. Overwriting...'.format(lmdb_save_path))
+
 
     #### read all the image paths to a list
     print('Reading image path list ...')
     all_img_list = sorted(glob.glob(osp.join(img_folder, '*')))
+
     keys = []
     for img_path in all_img_list:
-        keys.append(osp.splitext(osp.basename(img_path))[0])
-
+        if img_path.endswith('.png'):
+            keys.append(osp.splitext(osp.basename(img_path))[0])
     if read_all_imgs:
         #### read all images to memory (multiprocessing)
         dataset = {}  # store all image data. list cannot keep the order, use dict
