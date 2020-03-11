@@ -6,17 +6,17 @@ import numpy as np
 try:
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from data.util import imresize_np
-except ImportError:
-    pass
+except ImportError as e:
+    print(e)
 
 
-def generate_mod_LR_bic():
+def generate_mod_LR_bic(options):
     # set parameters
-    up_scale = 4
-    mod_scale = 4
+    up_scale = options.downscale
+    mod_scale = options.downscale
     # set data dir
-    sourcedir = '/data/datasets/img'
-    savedir = '/data/datasets/mod'
+    sourcedir = options.datapath
+    savedir = options.out
 
     saveHRpath = os.path.join(savedir, 'HR', 'x' + str(mod_scale))
     saveLRpath = os.path.join(savedir, 'LR', 'x' + str(up_scale))
@@ -78,4 +78,9 @@ def generate_mod_LR_bic():
 
 
 if __name__ == "__main__":
-    generate_mod_LR_bic()
+    import argparse
+    parser = argparse.ArgumentParser(description="Generate lowres")
+    parser.add_argument('--datapath', type=str, required=True, help='')
+    parser.add_argument('--out', type=str, required=True, help='')
+    parser.add_argument('--downscale', type=int, required=False, default=2, help='')
+    generate_mod_LR_bic(parser.parse_args())
