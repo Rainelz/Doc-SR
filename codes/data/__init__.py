@@ -2,6 +2,13 @@
 import logging
 import torch
 import torch.utils.data
+from prefetch_generator import BackgroundGenerator
+
+
+class DataLoader_(torch.utils.data.DataLoader):
+    # ref: https://github.com/IgorSusmelj/pytorch-styleguide/issues/5#issuecomment-495090086
+    def __iter__(self):
+        return BackgroundGenerator(super().__iter__())
 
 
 def create_dataloader(dataset, dataset_opt, opt=None, sampler=None):
@@ -17,11 +24,11 @@ def create_dataloader(dataset, dataset_opt, opt=None, sampler=None):
             num_workers = dataset_opt['n_workers'] * len(opt['gpu_ids'])
             batch_size = dataset_opt['batch_size']
             shuffle = True
-        return torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=shuffle,
+        return DataLoader_(dataset, batch_size=batch_size, shuffle=shuffle,
                                            num_workers=num_workers, sampler=sampler, drop_last=True,
                                            pin_memory=False)
     else:
-        return torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=1,
+        return DataLoader_(dataset, batch_size=1, shuffle=False, num_workers=1,
                                            pin_memory=False)
 
 
