@@ -4,3 +4,4 @@ lmdb
 pyyaml
 tb-nightly
 future
+prefetch_generator
