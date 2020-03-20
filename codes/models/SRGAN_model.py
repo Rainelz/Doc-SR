@@ -6,7 +6,7 @@ from torch.nn.parallel import DataParallel, DistributedDataParallel
 import models.networks as networks
 import models.lr_scheduler as lr_scheduler
 from .base_model import BaseModel
-from models.loss import GANLoss
+from models.loss import GANLoss, PerceptualLoss, CharbonnierLoss
 
 logger = logging.getLogger('base')
 
@@ -46,6 +46,8 @@ class SRGANModel(BaseModel):
                     self.cri_pix = nn.L1Loss().to(self.device)
                 elif l_pix_type == 'l2':
                     self.cri_pix = nn.MSELoss().to(self.device)
+                elif l_pix_type == 'cb':
+                    self.cri_pix = CharbonnierLoss().to(self.device)
                 else:
                     raise NotImplementedError('Loss type [{:s}] not recognized.'.format(l_pix_type))
                 self.l_pix_w = train_opt['pixel_weight']
@@ -55,23 +57,26 @@ class SRGANModel(BaseModel):
 
             # G feature loss
             if train_opt['feature_weight'] > 0:
+
+                self.netF = networks.define_F(opt, use_bn=False).to(self.device)
+                if opt['dist']:
+                    pass  # do not need to use DistributedDataParallel for netF
+                else:
+                    self.netF = DataParallel(self.netF)
+
                 l_fea_type = train_opt['feature_criterion']
                 if l_fea_type == 'l1':
                     self.cri_fea = nn.L1Loss().to(self.device)
                 elif l_fea_type == 'l2':
                     self.cri_fea = nn.MSELoss().to(self.device)
+                elif l_fea_type == 'p-cb':  # perceptual-charbonnier
+                    self.cri_fea = PerceptualLoss().to(self.device)
                 else:
                     raise NotImplementedError('Loss type [{:s}] not recognized.'.format(l_fea_type))
                 self.l_fea_w = train_opt['feature_weight']
             else:
                 logger.info('Remove feature loss.')
                 self.cri_fea = None
-            if self.cri_fea:  # load VGG perceptual loss
-                self.netF = networks.define_F(opt, use_bn=False).to(self.device)
-                if opt['dist']:
-                    pass  # do not need to use DistributedDataParallel for netF
-                else:
-                    self.netF = DataParallel(self.netF)
 
             # GD gan loss
             self.cri_gan = GANLoss(train_opt['gan_type'], 1.0, 0.0).to(self.device)
@@ -144,7 +149,14 @@ class SRGANModel(BaseModel):
             if self.cri_pix:  # pixel loss
                 l_g_pix = self.l_pix_w * self.cri_pix(self.fake_H, self.var_H)
                 l_g_total += l_g_pix
-            if self.cri_fea:  # feature loss
+            if self.opt['train']['feature_criterion'] == 'p-cb':  # perceptual with intermediate layers
+                real_out, real_intermediates = self.netF(self.var_H)
+                fake_out, fake_intermediates = self.netF(self.fake_H)
+                fake_features = fake_intermediates + [fake_out]
+                real_features = real_intermediates + [real_out]
+                l_g_fea = self.l_fea_w * self.cri_fea(fake_features, real_features)
+                l_g_total += l_g_fea
+            elif self.cri_fea:  # feature loss only last feature
                 real_fea = self.netF(self.var_H).detach()
                 fake_fea = self.netF(self.fake_H)
                 l_g_fea = self.l_fea_w * self.cri_fea(fake_fea, real_fea)

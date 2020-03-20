@@ -66,8 +66,9 @@ def define_F(opt, use_bn=False):
                                               use_input_norm=use_input_norm, device=device)
     elif 'efficientnet' in which_model:
         pretrained = opt_net['pretrained']
+        blocks = opt_net.get('perceptual_blocks', [1,3,5])
         netF = EffNet_arch.EfficientNetFeatureExtractor(which_model, in_ch=in_ch, pretrained=pretrained,
-                                                        device=device, use_input_norm=use_input_norm)
+                                                        device=device, use_input_norm=use_input_norm, blocks=blocks)
     else:
         raise NotImplementedError('Feature extractor model [{:s}] not recognized'.format(which_model))
     netF.eval()  # No need to train

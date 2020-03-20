@@ -10,9 +10,10 @@ class CharbonnierLoss(nn.Module):
         self.eps = eps
 
     def forward(self, x, y):
+        b, c, h, w = y.size()
         diff = x - y
         loss = torch.sum(torch.sqrt(diff * diff + self.eps))
-        return loss
+        return loss/(c*b*h*w)
 
 
 # Define GAN loss: [vanilla | lsgan | wgan-gp]
@@ -72,3 +73,22 @@ class GradientPenaltyLoss(nn.Module):
 
         loss = ((grad_interp_norm - 1)**2).mean()
         return loss
+
+class PerceptualLoss(nn.Module):
+    def __init__(self, crit='cb'):
+        super(PerceptualLoss, self).__init__()
+        if crit == 'cb':
+            self.crit = CharbonnierLoss()
+        elif crit == 'l1':
+            self.crit = nn.L1Loss()
+        elif crit == 'l2':
+            self.crit = nn.MSELoss()
+        else:
+            raise NotImplementedError('Loss type [{:s}] not recognized.'.format(crit))
+
+    def forward(self, outputs, targets):
+        loss_list = []
+        for features, target in zip(outputs, targets):
+            target.detach()
+            loss_list.append(self.crit(features, target))
+        return sum(loss_list)/len(outputs)
