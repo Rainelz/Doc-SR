@@ -49,13 +49,14 @@ class Discriminator_EfficientNet(nn.Module):  # nn.module
 
 
 class EfficientNetFeatureExtractor(nn.Module):
-    def __init__(self, model_name, in_ch, pretrained='imagenet', device=torch.device('cpu'), use_input_norm=True):
+    def __init__(self, model_name, in_ch, pretrained='imagenet', device=torch.device('cpu'),
+                 use_input_norm=True, blocks=(1, 3, 5)):
+
         super(EfficientNetFeatureExtractor, self).__init__()
         self.model_name = model_name
         self.use_input_norm = use_input_norm
-
+        self.blocks = blocks
         grayscale = 'gray' in model_name
-
         if grayscale:
             means = [0.5]
             stds = [0.5]
@@ -75,15 +76,35 @@ class EfficientNetFeatureExtractor(nn.Module):
 
         self.model = EfficientNet.from_pretrained(model_name, num_classes=num_classes, in_channels=in_ch,
                                                   pretrained=pretrained, load_fc=False)
+
+        assert all(block < len(self.model._blocks) for block in blocks)
+
         self.model.eval()
         for k, v in self.model.named_parameters():
             v.requires_grad = False
 
+    def get_layers(self):
+        return list(self.model.modules())
+
+    # noinspection PyProtectedMember
     def forward(self, x):
+        results = []
         x = F.interpolate(x, (self.image_size, self.image_size), mode='bicubic')
         if self.use_input_norm:
             x = (x - self.mean) / self.std
+        # Stem
+        x = self.model._swish(self.model._bn0(self.model._conv_stem(x)))
 
-        outputs = self.model.extract_features(x)
+        # Blocks
+        for idx, block in enumerate(self.model._blocks):
+            drop_connect_rate = self.model._global_params.drop_connect_rate
+            if drop_connect_rate:
+                drop_connect_rate *= float(idx) / len(self.model._blocks)
+            x = block(x, drop_connect_rate=drop_connect_rate)
+            if idx+1 in self.blocks:
+                results.append(x)
+        # Head
+        outputs = self.model._swish(self.model._bn1(self.model._conv_head(x)))
+        #outputs = self.model.extract_features(x)
 
-        return outputs
+        return outputs, results
