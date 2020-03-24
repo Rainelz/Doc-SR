@@ -1,4 +1,5 @@
 import functools
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -45,20 +46,52 @@ class RRDB(nn.Module):
         return out * 0.2 + x
 
 
+class UpSampleBlock(nn.Module):
+    def __init__(self, nf, scale=2):
+        super(UpSampleBlock, self).__init__()
+
+        self.scale = scale
+        self.act = nn.LeakyReLU(negative_slope=0.2, inplace=True)
+        self.conv = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
+
+    def forward(self, x):
+        out = self.act(self.conv(F.interpolate(x, scale_factor=self.scale, mode='nearest')))
+        return out
+
+
+class PixelShuffleBlock(nn.Module):
+
+    def __init__(self, nf, scale=2):
+        super(PixelShuffleBlock, self).__init__()
+
+        self.conv = nn.Conv2d(nf, nf*(scale**2), 3, 1, 1, bias=True)
+        self.pixel_shuffle = nn.PixelShuffle(scale)
+        self.act = nn.LeakyReLU(negative_slope=0.2, inplace=True)
+
+    def forward(self, x):
+        out = self.act(self.pixel_shuffle(self.conv(x)))
+        return out
+
 class RRDBNet(nn.Module):
-    def __init__(self, in_nc, out_nc, nf, nb, gc=32, upscale=4):
+    def __init__(self, in_nc, out_nc, nf, nb, gc=32, upscale=4, upsample_type='interpolate'):
         super(RRDBNet, self).__init__()
         RRDB_block_f = functools.partial(RRDB, nf=nf, gc=gc)
 
         self.conv_first = nn.Conv2d(in_nc, nf, 3, 1, 1, bias=True)
         self.RRDB_trunk = arch_util.make_layer(RRDB_block_f, nb)
         self.trunk_conv = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
-        self.upconvs = nn.ModuleList([])
+        self.upsamples = nn.ModuleList([])
         #### upsampling
-        for _ in range(0, upscale//2):
-            self.upconvs.append(nn.Conv2d(nf, nf, 3, 1, 1, bias=True))
-        # self.upconv1 = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
-        # self.upconv2 = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
+        for _ in range(0, int(math.log(upscale, 2))):  # [1,2,4,8,...]
+
+            if upsample_type == 'interpolate':
+                self.upsamples.append(UpSampleBlock(nf))  # upsample by 2
+
+            elif upsample_type == 'pixel_shuffle':
+                self.upsamples.append(PixelShuffleBlock(nf))
+            else:
+                raise NotImplementedError('Upsample type [{:s}] not recognized.'.format(upsample_type))
+
         self.HRconv = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
         self.conv_last = nn.Conv2d(nf, out_nc, 3, 1, 1, bias=True)
 
@@ -68,8 +101,8 @@ class RRDBNet(nn.Module):
         fea = self.conv_first(x)
         trunk = self.trunk_conv(self.RRDB_trunk(fea))
         fea = fea + trunk
-        for upconv in self.upconvs:
-            fea = self.lrelu(upconv(F.interpolate(fea, scale_factor=2, mode='nearest')))
+        for upsample in self.upsamples:
+            fea = upsample(fea)
         # fea = self.lrelu(self.upconv1(F.interpolate(fea, scale_factor=2, mode='nearest')))
         # fea = self.lrelu(self.upconv2(F.interpolate(fea, scale_factor=2, mode='nearest')))
         out = self.conv_last(self.lrelu(self.HRconv(fea)))

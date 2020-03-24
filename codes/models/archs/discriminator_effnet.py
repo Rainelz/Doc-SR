@@ -89,7 +89,7 @@ class EfficientNetFeatureExtractor(nn.Module):
     # noinspection PyProtectedMember
     def forward(self, x):
         results = []
-        x = F.interpolate(x, (self.image_size, self.image_size), mode='bicubic')
+        x = F.interpolate(x, (self.image_size, self.image_size), mode='bicubic', align_corners=False)
         if self.use_input_norm:
             x = (x - self.mean) / self.std
         # Stem

@@ -15,8 +15,10 @@ def define_G(opt):
         netG = SRResNet_arch.MSRResNet(in_nc=opt_net['in_nc'], out_nc=opt_net['out_nc'],
                                        nf=opt_net['nf'], nb=opt_net['nb'], upscale=opt_net['scale'])
     elif which_model == 'RRDBNet':
+        upsample_type = opt_net.get('upsample_type', 'interpolate')
         netG = RRDBNet_arch.RRDBNet(in_nc=opt_net['in_nc'], out_nc=opt_net['out_nc'],
-                                    nf=opt_net['nf'], nb=opt_net['nb'], upscale=opt_net['scale'])
+                                    nf=opt_net['nf'], nb=opt_net['nb'], upscale=opt_net['scale'],
+                                    upsample_type=upsample_type)
     # video restoration
     elif which_model == 'EDVR':
         netG = EDVR_arch.EDVR(nf=opt_net['nf'], nframes=opt_net['nframes'],
