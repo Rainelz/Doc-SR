@@ -44,11 +44,14 @@ def parse(opt_path, is_train=True):
             opt['path'][key] = osp.expanduser(path)
     opt['path']['root'] = osp.abspath(osp.join(__file__, osp.pardir, osp.pardir, osp.pardir))
     if is_train:
-        experiments_root = opt['path'].get('experiments_root', osp.join(opt['path']['root'], 'experiments', opt['name']))
+        experiments_root = opt['path'].get('experiments_root', osp.join(opt['path']['root'], 'experiments'))
+        tb_log_path = osp.join(experiments_root, 'tensorboard', opt['name'])
+        experiments_root = osp.join(experiments_root, opt['name'])
         opt['path']['experiments_root'] = experiments_root
         opt['path']['models'] = osp.join(experiments_root, 'models')
         opt['path']['training_state'] = osp.join(experiments_root, 'training_state')
         opt['path']['log'] = experiments_root
+        opt['path']['tb_log'] = tb_log_path
         opt['path']['val_images'] = osp.join(experiments_root, 'val_images')
 
         # change some options for debug mode

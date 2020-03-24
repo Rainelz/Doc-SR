@@ -97,10 +97,8 @@ class EfficientNetFeatureExtractor(nn.Module):
 
         # Blocks
         for idx, block in enumerate(self.model._blocks):
-            drop_connect_rate = self.model._global_params.drop_connect_rate
-            if drop_connect_rate:
-                drop_connect_rate *= float(idx) / len(self.model._blocks)
-            x = block(x, drop_connect_rate=drop_connect_rate)
+
+            x = block(x)
             if idx+1 in self.blocks:
                 results.append(x)
         # Head
