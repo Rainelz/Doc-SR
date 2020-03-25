@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-
+import numpy as np
+import functools
 
 class CharbonnierLoss(nn.Module):
     """Charbonnier Loss (L1)"""
@@ -92,3 +93,33 @@ class PerceptualLoss(nn.Module):
             target.detach()
             loss_list.append(self.crit(features, target))
         return sum(loss_list)/len(outputs)
+
+
+class EdgeLoss(nn.Module):
+    def __init__(self, crit='cb', device=torch.device('cpu')):
+        super(EdgeLoss, self).__init__()
+        kernel = [
+            [0, 0, 1, 0, 0],
+            [0, 1, 2, 1, 0],
+            [1, 2, -16, 2, 1],
+            [0, 1, 2, 1, 0],
+            [0, 0, 1, 0, 0],
+        ]
+        kernel = np.array(kernel)
+        kernel = torch.from_numpy(kernel).type(torch.FloatTensor)
+        kernel = kernel.unsqueeze(0).unsqueeze(1).to(device)
+        self.conv = functools.partial(nn.functional.conv2d, weight=kernel, padding=1)
+        if crit == 'cb':
+            self.crit = CharbonnierLoss()
+        elif crit == 'l1':
+            self.crit = nn.L1Loss()
+        elif crit == 'l2':
+            self.crit = nn.MSELoss()
+        else:
+            raise NotImplementedError('Loss type [{:s}] not recognized.'.format(crit))
+
+    def forward(self, outputs, targets):
+        out_edges = self.conv(outputs)
+        target_edges = self.conv(targets)
+        loss = self.crit(out_edges, target_edges)
+        return loss # / torch.sum(torch.pow(log, 2))
