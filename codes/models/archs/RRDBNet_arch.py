@@ -64,12 +64,13 @@ class PixelShuffleBlock(nn.Module):
     def __init__(self, nf, scale=2):
         super(PixelShuffleBlock, self).__init__()
 
-        self.conv = nn.Conv2d(nf, nf*(scale**2), 3, 1, 1, bias=True)
+        self.upconv = nn.Conv2d(nf, nf*(scale**2), 3, 1, 1, bias=True)
         self.pixel_shuffle = nn.PixelShuffle(scale)
+        self.conv = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
         self.act = nn.LeakyReLU(negative_slope=0.2, inplace=True)
 
     def forward(self, x):
-        out = self.act(self.pixel_shuffle(self.conv(x)))
+        out = self.act(self.conv(self.pixel_shuffle(self.upconv(x))))
         return out
 
 class RRDBNet(nn.Module):
