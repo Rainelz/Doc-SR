@@ -6,7 +6,7 @@ from torch.nn.parallel import DataParallel, DistributedDataParallel
 import models.networks as networks
 import models.lr_scheduler as lr_scheduler
 from .base_model import BaseModel
-from models.loss import GANLoss, PerceptualLoss, CharbonnierLoss
+from models.loss import GANLoss, PerceptualLoss, CharbonnierLoss, EdgeLoss
 
 logger = logging.getLogger('base')
 
@@ -69,15 +69,22 @@ class SRGANModel(BaseModel):
                     self.cri_fea = nn.L1Loss().to(self.device)
                 elif l_fea_type == 'l2':
                     self.cri_fea = nn.MSELoss().to(self.device)
-                elif l_fea_type == 'p-cb':  # perceptual-charbonnier
-                    self.cri_fea = PerceptualLoss().to(self.device)
+                elif 'p-' in l_fea_type:  # perceptual-charbonnier
+                    crit = l_fea_type.replace('p-', '')
+                    self.cri_fea = PerceptualLoss(crit=crit).to(self.device)
                 else:
                     raise NotImplementedError('Loss type [{:s}] not recognized.'.format(l_fea_type))
                 self.l_fea_w = train_opt['feature_weight']
             else:
                 logger.info('Remove feature loss.')
                 self.cri_fea = None
-
+            if train_opt['edge_weight'] > 0:
+                l_edge_type = train_opt['edge_criterion']
+                self.cri_edge = EdgeLoss(crit=l_edge_type, device=self.device).to(self.device)
+                self.l_edge_w = train_opt['edge_weight']
+            else:
+                logger.info('Remove Edge loss.')
+                self.cri_edge = None
             # GD gan loss
             self.cri_gan = GANLoss(train_opt['gan_type'], 1.0, 0.0).to(self.device)
             self.l_gan_w = train_opt['gan_weight']
@@ -161,7 +168,9 @@ class SRGANModel(BaseModel):
                 fake_fea = self.netF(self.fake_H)
                 l_g_fea = self.l_fea_w * self.cri_fea(fake_fea, real_fea)
                 l_g_total += l_g_fea
-
+            if self.cri_edge:
+                l_g_edge = self.l_edge_w * self.cri_edge(self.fake_H, self.var_H)
+                l_g_total += l_g_edge
             if self.opt['train']['gan_type'] == 'gan':
                 pred_g_fake = self.netD(self.fake_H)
                 l_g_gan = self.l_gan_w * self.cri_gan(pred_g_fake, True)
@@ -213,6 +222,8 @@ class SRGANModel(BaseModel):
                 self.log_dict['l_g_pix'] = l_g_pix.item()
             if self.cri_fea:
                 self.log_dict['l_g_fea'] = l_g_fea.item()
+            if self.cri_edge:
+                self.log_dict['l_g_edge'] = l_g_edge.item()
             self.log_dict['l_g_gan'] = l_g_gan.item()
 
         self.log_dict['l_d_real'] = l_d_real.item()

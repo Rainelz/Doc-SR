@@ -95,7 +95,7 @@ def main():
     util.set_random_seed(seed)
 
     torch.backends.cudnn.benchmark = True
-    # torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.deterministic = True
 
     #### create train and val dataloader
     dataset_ratio = 200  # enlarge the size of each epoch
