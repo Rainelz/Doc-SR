@@ -19,12 +19,18 @@ class CharbonnierLoss(nn.Module):
 
 # Define GAN loss: [vanilla | lsgan | wgan-gp]
 class GANLoss(nn.Module):
-    def __init__(self, gan_type, real_label_val=1.0, fake_label_val=0.0):
+    def __init__(self, gan_type, real_label_val=1.0, fake_label_val=0.0, label_smooth=False):
         super(GANLoss, self).__init__()
+        if label_smooth:
+            assert real_label_val == 1
+
         self.gan_type = gan_type.lower()
         self.real_label_val = real_label_val
         self.fake_label_val = fake_label_val
-
+        if label_smooth:  # one sided smoothing, only on real samples
+            self.smooth_window = 0.1
+        else:
+            self.smooth_window = 0
         if self.gan_type == 'gan' or self.gan_type == 'ragan':
             self.loss = nn.BCEWithLogitsLoss()
         elif self.gan_type == 'lsgan':
@@ -39,16 +45,21 @@ class GANLoss(nn.Module):
         else:
             raise NotImplementedError('GAN type [{:s}] is not found'.format(self.gan_type))
 
-    def get_target_label(self, input, target_is_real):
+    def get_target_label(self, input, target_is_real, is_updating_D):
         if self.gan_type == 'wgan-gp':
             return target_is_real
-        if target_is_real:
-            return torch.empty_like(input).fill_(self.real_label_val)
-        else:
-            return torch.empty_like(input).fill_(self.fake_label_val)
 
-    def forward(self, input, target_is_real):
-        target_label = self.get_target_label(input, target_is_real)
+        if target_is_real:
+            if is_updating_D:  # smooth labels only when backpropagating on D
+                value = self.real_label_val-self.smooth_window
+            else:
+                value = self.real_label_val
+        else:
+            value = self.fake_label_val
+        return torch.empty_like(input).fill_(value)
+
+    def forward(self, input, target_is_real, is_updating_D=False):
+        target_label = self.get_target_label(input, target_is_real, is_updating_D)
         loss = self.loss(input, target_label)
         return loss
 
@@ -74,6 +85,7 @@ class GradientPenaltyLoss(nn.Module):
 
         loss = ((grad_interp_norm - 1)**2).mean()
         return loss
+
 
 class PerceptualLoss(nn.Module):
     def __init__(self, crit='cb'):
