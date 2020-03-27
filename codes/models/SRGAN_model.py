@@ -86,7 +86,8 @@ class SRGANModel(BaseModel):
                 logger.info('Remove Edge loss.')
                 self.cri_edge = None
             # GD gan loss
-            self.cri_gan = GANLoss(train_opt['gan_type'], 1.0, 0.0).to(self.device)
+            label_smooth = opt['network_D'].get('label_smooth', False)
+            self.cri_gan = GANLoss(train_opt['gan_type'], 1.0, 0.0, label_smooth=label_smooth).to(self.device)
             self.l_gan_w = train_opt['gan_weight']
             # D_update_ratio and D_init_iters
             self.D_update_ratio = train_opt['D_update_ratio'] if train_opt['D_update_ratio'] else 1
@@ -194,7 +195,7 @@ class SRGANModel(BaseModel):
             # need to forward and backward separately, since batch norm statistics differ
             # real
             pred_d_real = self.netD(self.var_ref)
-            l_d_real = self.cri_gan(pred_d_real, True)
+            l_d_real = self.cri_gan(pred_d_real, True, is_updating_D=True)
             l_d_real.backward()
             # fake
             pred_d_fake = self.netD(self.fake_H.detach())  # detach to avoid BP to G
@@ -209,7 +210,7 @@ class SRGANModel(BaseModel):
             # l_d_total.backward()
             pred_d_fake = self.netD(self.fake_H.detach()).detach()
             pred_d_real = self.netD(self.var_ref)
-            l_d_real = self.cri_gan(pred_d_real - torch.mean(pred_d_fake), True) * 0.5
+            l_d_real = self.cri_gan(pred_d_real - torch.mean(pred_d_fake), True, is_updating_D=True) * 0.5
             l_d_real.backward()
             pred_d_fake = self.netD(self.fake_H.detach())
             l_d_fake = self.cri_gan(pred_d_fake - torch.mean(pred_d_real.detach()), False) * 0.5
