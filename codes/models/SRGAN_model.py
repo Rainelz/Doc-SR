@@ -108,10 +108,17 @@ class SRGANModel(BaseModel):
                                                 betas=(train_opt['beta1_G'], train_opt['beta2_G']))
             self.optimizers.append(self.optimizer_G)
             # D
-            wd_D = train_opt['weight_decay_D'] if train_opt['weight_decay_D'] else 0
-            self.optimizer_D = torch.optim.Adam(self.netD.parameters(), lr=train_opt['lr_D'],
-                                                weight_decay=wd_D,
-                                                betas=(train_opt['beta1_D'], train_opt['beta2_D']))
+            optim_D = train_opt.get('optim_D', 'adam') == 'adam'
+            if optim_D == 'adam':
+                wd_D = train_opt['weight_decay_D'] if train_opt['weight_decay_D'] else 0
+                self.optimizer_D = torch.optim.Adam(self.netD.parameters(), lr=train_opt['lr_D'],
+                                                    weight_decay=wd_D,
+                                                    betas=(train_opt['beta1_D'], train_opt['beta2_D']))
+            elif optim_D == 'sgd':
+                self.optimizer_D = torch.optim.SGD(self.netD.parameters(), lr=train_opt['lr_D'])
+            else:
+                raise NotImplementedError('Unrecognized Discriminator optimizer')
+
             self.optimizers.append(self.optimizer_D)
 
             # schedulers
