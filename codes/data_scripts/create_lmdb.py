@@ -20,6 +20,7 @@ def main():
     parser.add_argument("--data-path", type=str, required=True)
     parser.add_argument("--out", type=str, required=True)
     parser.add_argument("--name", type=str, default=None, required=False)
+    parser.add_argument("--workers", type=int, default=4, required=False)
 
     args = parser.parse_args()
     dataset = 'general'  # vimeo90K | REDS | general (e.g., DIV2K, 291) | DIV2K_demo |test
@@ -33,6 +34,7 @@ def main():
         REDS(mode)
     elif dataset == 'general':
         opt = {}
+        opt['n_workers'] = args.workers
         opt['img_folder'] = args.data_path
         opt['lmdb_save_path'] = args.out + ".lmdb"
         opt['name'] = args.name or 'general'
@@ -68,7 +70,7 @@ def general_image_folder(opt):
     read_all_imgs = False  # whether real all images to memory with multiprocessing
     # Set False for use limited memory
     BATCH = 5000  # After BATCH images, lmdb commits, if read_all_imgs = False
-    n_thread = 40
+    n_thread = opt['n_workers']
     ########################################################
     img_folder = opt['img_folder']
     lmdb_save_path = opt['lmdb_save_path']
