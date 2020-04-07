@@ -103,9 +103,20 @@ class SRGANModel(BaseModel):
                 else:
                     if self.rank <= 0:
                         logger.warning('Params [{:s}] will not optimize.'.format(k))
-            self.optimizer_G = torch.optim.Adam(optim_params, lr=train_opt['lr_G'],
-                                                weight_decay=wd_G,
-                                                betas=(train_opt['beta1_G'], train_opt['beta2_G']))
+            optim_G = train_opt.get('optim_G', 'adam') == 'adam'
+            if optim_G == 'adam':
+                wd_G = train_opt['weight_decay_G'] if train_opt['weight_decay_G'] else 0
+                self.optimizer_G = torch.optim.Adam(optim_params, lr=train_opt['lr_G'],
+                                                    weight_decay=wd_G,
+                                                    betas=(train_opt['beta1_G'], train_opt['beta2_G']))
+            elif optim_G == 'adamW':
+                wd_G = train_opt['weight_decay_G'] if train_opt['weight_decay_G'] else 0
+                self.optimizer_G = torch.optim.Adam(optim_params, lr=train_opt['lr_G'],
+                                                    weight_decay=wd_G,
+                                                    betas=(train_opt['beta1_G'], train_opt['beta2_G']))
+            else:
+                raise NotImplementedError('Unrecognized Generator optimizer')
+
             self.optimizers.append(self.optimizer_G)
             # D
             optim_D = train_opt.get('optim_D', 'adam') == 'adam'
@@ -114,6 +125,11 @@ class SRGANModel(BaseModel):
                 self.optimizer_D = torch.optim.Adam(self.netD.parameters(), lr=train_opt['lr_D'],
                                                     weight_decay=wd_D,
                                                     betas=(train_opt['beta1_D'], train_opt['beta2_D']))
+            if optim_D == 'adamW':
+                wd_D = train_opt['weight_decay_D'] if train_opt['weight_decay_D'] else 0
+                self.optimizer_D = torch.optim.AdamW(self.netD.parameters(), lr=train_opt['lr_D'],
+                                                     weight_decay=wd_D,
+                                                     betas=(train_opt['beta1_D'], train_opt['beta2_D']))
             elif optim_D == 'sgd':
                 self.optimizer_D = torch.optim.SGD(self.netD.parameters(), lr=train_opt['lr_D'])
             else:
@@ -141,7 +157,7 @@ class SRGANModel(BaseModel):
 
             self.log_dict = OrderedDict()
 
-        self.print_network()  # print network
+        #self.print_network()  # print network
         self.load()  # load G and D if needed
 
     def feed_data(self, data, need_GT=True):
