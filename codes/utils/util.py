@@ -68,6 +68,7 @@ def mkdir_and_rename(path):
 
 
 def set_random_seed(seed):
+    os.environ['PYTHONHASHSEED'] = str(seed)
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
