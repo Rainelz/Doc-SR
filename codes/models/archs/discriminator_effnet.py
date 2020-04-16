@@ -1,11 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision
-from torchvision import transforms
+
 from efficientnet_pytorch import EfficientNet
-from efficientnet_pytorch.utils import load_pretrained_weights, adv_prop_transform
-from PIL import Image
 
 
 class Discriminator_EfficientNet(nn.Module):  # nn.module
