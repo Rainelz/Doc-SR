@@ -5,6 +5,7 @@ import random
 import logging
 
 import torch
+import torchvision
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from data.data_sampler import DistIterSampler
@@ -122,6 +123,12 @@ def main():
             if rank <= 0:
                 logger.info('Number of val images in [{:s}]: {:d}'.format(
                     dataset_opt['name'], len(val_set)))
+        elif phase == 'test':
+            test_set = create_dataset(dataset_opt)
+            test_loader = create_dataloader(test_set, dataset_opt, opt, None)
+            if rank <= 0:
+                logger.info('Number of test images in [{:s}]: {:d}'.format(
+                    dataset_opt['name'], len(test_set)))
         else:
             raise NotImplementedError('Phase [{:s}] is not recognized.'.format(phase))
     assert train_loader is not None
@@ -182,6 +189,7 @@ def main():
                     avg_psnr = 0.
                     idx = 0
                     for val_data in val_loader:
+                        torch.cuda.empty_cache()
                         img_name = os.path.splitext(os.path.basename(val_data['LQ_path'][0]))[0]
                         img_dir = os.path.join(opt['path']['val_images'], img_name)
                         util.mkdir(img_dir)
@@ -202,6 +210,10 @@ def main():
                         pbar.update('Test {}'.format(img_name))
                         idx += 1
 
+                        # # Log gt and sr img
+                        # tb_logger.add_image(img_name, torchvision.utils.make_grid(
+                        #                     torch.stack((visuals['rlt'], visuals['GT']), dim=0)),
+                        #                     global_step=current_step)
 
                     avg_psnr = avg_psnr / idx
 
@@ -210,6 +222,29 @@ def main():
                     # tensorboard logger
                     if opt['use_tb_logger'] and 'debug' not in opt['name']:
                         tb_logger.add_scalar('psnr', avg_psnr, current_step)
+
+                    if opt['datasets'].get('test', None) and current_step % opt['train']['val_freq'] == 0:
+                        pbar = util.ProgressBar(len(test_loader))
+                        for test_data in test_loader:
+                            torch.cuda.empty_cache()
+                            img_name = os.path.splitext(os.path.basename(test_data['LQ_path'][0]))[0]
+                            img_dir = os.path.join(opt['path']['test_images'], img_name)
+                            util.mkdir(img_dir)
+                            model.feed_data(test_data, need_GT=False)
+                            model.test()
+                            visuals = model.get_current_visuals()
+                            sr_img = util.tensor2img(visuals['rlt'])  # uint8
+
+                            # Save SR images for reference
+                            save_img_path = os.path.join(img_dir,
+                                                         '{:s}_{:d}.png'.format(img_name, current_step))
+                            util.save_img(sr_img, save_img_path)
+
+                            pbar.update('Test {}'.format(img_name))
+
+                            # Log sr img
+                            tb_logger.add_image(img_name, visuals['rlt'], global_step=current_step)
+
                 else:  # video restoration validation
                     if opt['dist']:
                         # multi-GPU testing

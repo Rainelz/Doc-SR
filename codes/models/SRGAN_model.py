@@ -95,7 +95,6 @@ class SRGANModel(BaseModel):
 
             # optimizers
             # G
-            wd_G = train_opt['weight_decay_G'] if train_opt['weight_decay_G'] else 0
             optim_params = []
             for k, v in self.netG.named_parameters():  # can optimize for a part of the model
                 if v.requires_grad:
@@ -103,7 +102,8 @@ class SRGANModel(BaseModel):
                 else:
                     if self.rank <= 0:
                         logger.warning('Params [{:s}] will not optimize.'.format(k))
-            optim_G = train_opt.get('optim_G', 'adam') == 'adam'
+
+            optim_G = train_opt.get('optim_G', 'adam')
             if optim_G == 'adam':
                 wd_G = train_opt['weight_decay_G'] if train_opt['weight_decay_G'] else 0
                 self.optimizer_G = torch.optim.Adam(optim_params, lr=train_opt['lr_G'],
@@ -119,13 +119,15 @@ class SRGANModel(BaseModel):
 
             self.optimizers.append(self.optimizer_G)
             # D
-            optim_D = train_opt.get('optim_D', 'adam') == 'adam'
+
+            optim_D = train_opt.get('optim_D', 'adam')
+
             if optim_D == 'adam':
                 wd_D = train_opt['weight_decay_D'] if train_opt['weight_decay_D'] else 0
                 self.optimizer_D = torch.optim.Adam(self.netD.parameters(), lr=train_opt['lr_D'],
                                                     weight_decay=wd_D,
                                                     betas=(train_opt['beta1_D'], train_opt['beta2_D']))
-            if optim_D == 'adamW':
+            elif optim_D == 'adamW':
                 wd_D = train_opt['weight_decay_D'] if train_opt['weight_decay_D'] else 0
                 self.optimizer_D = torch.optim.AdamW(self.netD.parameters(), lr=train_opt['lr_D'],
                                                      weight_decay=wd_D,
@@ -146,12 +148,14 @@ class SRGANModel(BaseModel):
                                                          weights=train_opt['restart_weights'],
                                                          gamma=train_opt['lr_gamma'],
                                                          clear_state=train_opt['clear_state']))
+
             elif train_opt['lr_scheme'] == 'CosineAnnealingLR_Restart':
                 for optimizer in self.optimizers:
                     self.schedulers.append(
                         lr_scheduler.CosineAnnealingLR_Restart(
                             optimizer, train_opt['T_period'], eta_min=train_opt['eta_min'],
                             restarts=train_opt['restarts'], weights=train_opt['restart_weights']))
+
             else:
                 raise NotImplementedError('MultiStepLR learning rate scheme is enough.')
 

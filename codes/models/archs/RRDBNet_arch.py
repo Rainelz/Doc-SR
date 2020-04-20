@@ -63,7 +63,6 @@ class PixelShuffleBlock(nn.Module):
 
     def __init__(self, nf, scale=2):
         super(PixelShuffleBlock, self).__init__()
-
         self.upconv = nn.Conv2d(nf, nf*(scale**2), 3, 1, 1, bias=True)
         self.pixel_shuffle = nn.PixelShuffle(scale)
         self.conv = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
@@ -72,6 +71,22 @@ class PixelShuffleBlock(nn.Module):
     def forward(self, x):
         out = self.act(self.conv(self.pixel_shuffle(self.upconv(x))))
         return out
+
+
+class MixedShuffleBlock(nn.Module):
+
+    def __init__(self, nf, scale=2):
+        super(MixedShuffleBlock, self).__init__()
+        self.pix_block = PixelShuffleBlock(nf, scale)
+        self.upsample_block = UpSampleBlock(nf, scale)
+        self.conv = nn.Conv2d(nf*2, nf, 3, 1, 1, bias=True)
+
+    def forward(self, x):
+        x_1 = self.pix_block(x)
+        x_2 = self.upsample_block(x)
+        out = self.conv(torch.cat((x_1, x_2), 1))
+        return out
+
 
 class RRDBNet(nn.Module):
     def __init__(self, in_nc, out_nc, nf, nb, gc=32, upscale=4, upsample_type='interpolate'):
@@ -90,6 +105,8 @@ class RRDBNet(nn.Module):
 
             elif upsample_type == 'pixel_shuffle':
                 self.upsamples.append(PixelShuffleBlock(nf))
+            elif upsample_type == 'mixed':
+                self.upsamples.append(MixedShuffleBlock(nf))
             else:
                 raise NotImplementedError('Upsample type [{:s}] not recognized.'.format(upsample_type))
 
