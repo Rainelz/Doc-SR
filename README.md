@@ -12,6 +12,10 @@ Moreover, this work implements an edge loss to improve the character reconstruct
 
 [TODO]
 - Test robust-loss
+# Inference Requirements
+- NVIDIA GPU + [CUDA >= 9.0](https://developer.nvidia.com/cuda-downloads) (Recommended)
+- Python 3
+- Python packages: `pip install -r inference_requirements.txt`
 
 # Requirements
 - NVIDIA GPU + [CUDA >= 9.0](https://developer.nvidia.com/cuda-downloads)
