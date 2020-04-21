@@ -1,5 +1,6 @@
 import React from 'react';
-import axios, { post } from 'axios';
+import { post } from 'axios';
+import './App.css';
 import Show from './Show';
 
 class App extends React.Component {
@@ -64,7 +65,8 @@ class App extends React.Component {
 
   render() {
     return (
-      <div>
+      <div className="App">
+        <header className="App-header"></header>        
         <Show src={this.state.src} output={this.state.output} />
         <form onSubmit={this.onFormSubmit}>
           <h1>File Upload</h1>
