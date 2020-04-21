@@ -4,7 +4,7 @@ tb_logger/*
 datasets/*
 .vscode
 
-*.html
+# *.html
 *.png
 *.jpg
 *.gif
