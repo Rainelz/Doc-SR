@@ -67,7 +67,7 @@ class App extends React.Component {
     return (
       <div className="App">
         <header className="App-header"></header>        
-        <Show src={this.state.src} output={this.state.output} />
+        <Show src={this.state.src} />
         <form onSubmit={this.onFormSubmit}>
           <h1>File Upload</h1>
           <input type="file" onChange={this.onChange} />

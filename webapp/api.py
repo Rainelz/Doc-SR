@@ -1,6 +1,7 @@
 import os
 import argparse
 import sys
+
 sys.path.append("../codes") 
 
 from PIL import Image
@@ -9,9 +10,7 @@ from werkzeug.utils import secure_filename
 
 from infer import SuperGAN
 
-parser = argparse.ArgumentParser()
-
-app = Flask(__name__, static_folder='build', static_url_path='')
+app = Flask(__name__, static_folder='build', static_url_path='/')
 app.config['UPLOAD_FOLDER'] = 'images'
 
 MODELS_PATH = os.environ.get("MODELS_PATH")
@@ -22,14 +21,7 @@ if not MODELS_PATH:
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-def rotate(image_path, degrees_to_rotate, saved_location):
-    image_obj = Image.open(image_path)
-    rotated_image = image_obj.rotate(degrees_to_rotate)
-    rotated_image.save(saved_location)
-    rotated_image.show()
-
 def get_path_for_model(model):
-
     return MODELS_PATH+'/superGAN_best.pth'
 
 def process(image_path, model=None):
