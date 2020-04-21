@@ -5,3 +5,5 @@ pyyaml
 tb-nightly
 future
 prefetch_generator
+Werkzeug
+flask
