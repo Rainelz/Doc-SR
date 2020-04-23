@@ -3,8 +3,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import models.archs.arch_util as arch_util
-
+from . import arch_util
 
 class ResidualDenseBlock_5C(nn.Module):
     def __init__(self, nf=64, gc=32, bias=True):

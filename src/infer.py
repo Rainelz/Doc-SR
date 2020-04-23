@@ -1,6 +1,6 @@
 import torch
 from torchvision import transforms
-from models.archs.RRDBNet_arch import RRDBNet
+from src.models.archs.RRDBNet_arch import RRDBNet
 from PIL import Image
 import numpy as np
 

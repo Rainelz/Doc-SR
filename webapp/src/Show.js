@@ -4,8 +4,8 @@ import BeforeAfterSlider from 'react-before-after-slider';
 class Show extends React.Component {
   render() {
     if (this.props.src) {
-      const file1 = 'http://localhost:5000/uploads/' + this.props.src;
-      const file2 = 'http://localhost:5000/uploads/' + this.props.src.replace('.png', '_processed.png');
+      const file1 = '/uploads/' + this.props.src;
+      const file2 = '/uploads/' + this.props.src.replace('.png', '_processed.png');
       return (
         <BeforeAfterSlider
           before={file1}

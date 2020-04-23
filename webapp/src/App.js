@@ -52,7 +52,7 @@ class App extends React.Component {
   }
 
   fileUpload(file) {
-    const url = '/api/upload';
+    const url = '/server/upload';
     const formData = new FormData();
     formData.append('file', file);
     const config = {
