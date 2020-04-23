@@ -9,8 +9,10 @@ from src.infer import SuperGAN
 
 parser = argparse.ArgumentParser()
 
-app = Flask(__name__, static_folder='../webapp/build', static_url_path='')
-app.config['UPLOAD_FOLDER'] = os.getcwd() + '/images'
+app = Flask(__name__, static_folder='../webapp/build', static_url_path='/')
+UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.getcwd() + '/images' )
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 MODELS_PATH = os.environ.get("MODELS_PATH")
 if not MODELS_PATH:

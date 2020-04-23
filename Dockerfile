@@ -17,7 +17,7 @@ RUN useradd -l -u ${USER_UID} -r -g 0 -d ${APP_ROOT} -s /sbin/nologin -c "${USER
 
 RUN apt-get update && apt-get -qq -y install curl bzip2 wget 
 RUN apt-get update && apt-get -qq -y install build-essential libglib2.0-0 libsm6 \
-    libxext6 libxrender-dev git fontconfig debconf debconf-utils
+    libxext6 libxrender-dev git debconf debconf-utils
 
 #minio client
 RUN curl -o ${APP_ROOT}/bin/mc https://dl.min.io/client/mc/release/linux-amd64/mc && \
@@ -63,14 +63,16 @@ ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 # confirm installation
 RUN node -v
 RUN npm -v
-RUN chmod -R g+wx ${APP_ROOT}
+RUN chmod -R g+w ${APP_ROOT}
+RUN chmod -R g+x ${APP_ROOT}
+
 
 WORKDIR ${APP_ROOT}/inference
 COPY . .
 RUN pip install -r inference_requirements.txt
 RUN cd webapp && npm i && npm run build
 
-RUN chmod -R g+wx ${WORKDIR}
+RUN chmod -R g+wx ${APP_ROOT}/inference
 
 ENV HOME="${APP_ROOT}/inference"
 

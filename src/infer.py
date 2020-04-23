@@ -35,6 +35,7 @@ config = {'in_nc': 1, 'out_nc': 1, 'nf': 64,
 
 class SuperGAN():
     def __init__(self, model_path, device='cpu'):
+        self.device = device
         self.model = RRDBNet(**config).to(device)
         self.model.eval()
         load_net = torch.load(model_path)
@@ -49,7 +50,7 @@ class SuperGAN():
         ])
 
     def process_image(self, image):
-        x = self.prepare(image).unsqueeze(0)
+        x = self.prepare(image).unsqueeze(0).to(self.device)
         with torch.no_grad():
             output = self.model(x)
         processed = tensor2img(output)
