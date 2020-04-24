@@ -1,6 +1,5 @@
 import os
 import argparse
-import sys
 from PIL import Image
 from flask import Flask, request, send_file, url_for, redirect, send_from_directory
 from werkzeug.utils import secure_filename
@@ -10,7 +9,8 @@ from src.infer import SuperGAN
 parser = argparse.ArgumentParser()
 
 app = Flask(__name__, static_folder='../webapp/build', static_url_path='/')
-UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.getcwd() + '/images' )
+
+UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.getcwd() + '/images')
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 

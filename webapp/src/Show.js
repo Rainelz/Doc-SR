@@ -6,12 +6,13 @@ class Show extends React.Component {
     if (this.props.src) {
       const file1 = '/uploads/' + this.props.src;
       const file2 = '/uploads/' + this.props.src.replace('.png', '_processed.png');
+
       return (
         <BeforeAfterSlider
           before={file1}
           after={file2}
-          width={640}
-          height={480}
+          width={2479}
+          height={3508}
         />
       );
     } else {
