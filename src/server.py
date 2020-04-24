@@ -24,15 +24,19 @@ def get_path_for_model(model):
     return MODELS_PATH+'/superGAN_best.pth'
 
 
+MAX_WIDTH = 1239
+MAX_HEIGHT = 1754
 def process(image_path, model=None):
+    img = Image.open(image_path)
+    if img.width > MAX_WIDTH or img.height > MAX_HEIGHT:
+        img = img.resize((MAX_WIDTH, MAX_HEIGHT))
     model_path = get_path_for_model(model)
     model = SuperGAN(model_path=model_path, device=device)
     print("Processing ", image_path)
-    img = Image.open(image_path)
     out = model.process_image(img)
     print("Processed ", image_path)
     out.save(image_path.replace('.png', '_processed.png'))
-    del model
+    model.free()
 
 
 @app.route('/uploads/<filename>')
@@ -46,7 +50,8 @@ def upload_file():
     filename = secure_filename(f.filename)
     f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
     process(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    return redirect(url_for('uploaded_file', filename=filename))
+
+    return redirect(url_for('uploaded_file', filename=filename, _scheme='https', _external=True))
 
 
 @app.route('/')
