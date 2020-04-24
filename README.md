@@ -17,7 +17,11 @@ Moreover, this work implements an edge loss to improve the character reconstruct
 - Python 3
 - Python packages: `pip install -r inference_requirements.txt`
 
-# Requirements
+# Inference run
+- build js `cd webapp && npm i && npm run build`
+- run server `DEVICE=[cuda/cpu] MODELS_PATH=/path/to/models/dir FLASK_APP=src/server.py FLASK_ENV=development flask run`
+
+# Training Requirements
 - NVIDIA GPU + [CUDA >= 9.0](https://developer.nvidia.com/cuda-downloads)
 - Python 3 (Recommend to use [Anaconda](https://www.anaconda.com/download))
 - [PyTorch >= 1.1](https://pytorch.org)

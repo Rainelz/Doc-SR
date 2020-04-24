@@ -4,7 +4,7 @@ tb_logger/*
 datasets/*
 .vscode
 
-*.html
+# *.html
 *.png
 *.jpg
 *.gif
@@ -119,3 +119,5 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+codes/webapp/node_modules/
