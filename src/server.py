@@ -1,8 +1,10 @@
 import os
 import argparse
 from PIL import Image
-from flask import Flask, request, send_file, url_for, redirect, send_from_directory
+from flask import Flask, request, send_file, url_for, redirect, send_from_directory, jsonify
 from werkzeug.utils import secure_filename
+import json
+from pathlib import Path
 
 from src.infer import SuperGAN
 
@@ -52,6 +54,21 @@ def upload_file():
     process(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
     return redirect(url_for('uploaded_file', filename=filename, _scheme='https', _external=True))
+
+
+@app.route('/server/models', methods = ['GET'])
+def models_list():
+    models = Path(MODELS_PATH).glob('*.json')
+    result = dict()
+    for model in models:
+        with open(str(model), 'r') as f:
+            data = json.load(f)
+            result.update({model.stem: {'name': data['name'],
+                                        'description': data['description']
+                                        }
+                           })
+
+    return jsonify(isError=False, message="Success", statusCode=200, data=result)
 
 
 @app.route('/')
