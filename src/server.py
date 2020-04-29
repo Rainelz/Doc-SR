@@ -33,8 +33,8 @@ def process(image_path, model=None):
     if img.width > MAX_WIDTH or img.height > MAX_HEIGHT:
         img = img.resize((MAX_WIDTH, MAX_HEIGHT))
     model_path = get_path_for_model(model)
+    print(f"Processing {image_path} with {model}")
     model = SuperGAN(model_path=model_path, device=device)
-    print("Processing ", image_path)
     out = model.process_image(img)
     print("Processed ", image_path)
     out.save(image_path.replace('.png', '_processed.png'))
@@ -46,17 +46,21 @@ def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
-@app.route('/server/upload', methods = ['POST'])
+@app.route('/server/upload', methods=['POST'])
 def upload_file():
     f = request.files['file']
+    model_name = request.form['model']
+    if model_name == 'null':
+        return "Model name not specified", 404
     filename = secure_filename(f.filename)
-    f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    process(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    f.save(file_path)
+    process(file_path, model_name)
 
-    return redirect(url_for('uploaded_file', filename=filename, _scheme='https', _external=True))
+    return redirect(url_for('uploaded_file', filename=filename)) #, _scheme='https', _external=True))
 
 
-@app.route('/server/models', methods = ['GET'])
+@app.route('/server/models', methods=['GET'])
 def models_list():
     models = Path(MODELS_PATH).glob('*.json')
     result = dict()

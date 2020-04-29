@@ -74,7 +74,7 @@ class App extends React.Component {
   }
 
   fileUpload(file) {
-    const url = '/server/upload/';
+    const url = '/server/upload';
     const formData = new FormData();
     formData.append('file', file);
     formData.append('model', this.state.model);
