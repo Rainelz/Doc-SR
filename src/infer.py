@@ -30,11 +30,12 @@ def tensor2img(tensor, out_type=np.uint8, min_max=(0, 1)):
     return Image.fromarray(img_np)
 
 
-config = {'in_nc': 1, 'out_nc': 1, 'nf': 64,
-          'nb': 23, 'upscale': 2, 'upsample_type': 'interpolate'}
+CONFIG = {'in_nc': 1, 'out_nc': 1, 'nf': 64,
+          'nb': 23, 'upscale': 1, 'upsample_type': 'interpolate'}
 
-class SuperGAN():
-    def __init__(self, model_path, device='cpu'):
+
+class SuperGAN:
+    def __init__(self, model_path, config=CONFIG, device='cpu'):
         self.device = device
         self.model = RRDBNet(**config).to(device)
         self.model.eval()
