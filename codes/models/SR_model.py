@@ -7,7 +7,7 @@ from torch.nn.parallel import DataParallel, DistributedDataParallel
 import models.networks as networks
 import models.lr_scheduler as lr_scheduler
 from .base_model import BaseModel
-from models.loss import CharbonnierLoss
+from models.loss import CharbonnierLoss, EdgeLoss, PerceptualLoss
 
 logger = logging.getLogger('base')
 
@@ -35,20 +35,53 @@ class SRModel(BaseModel):
         if self.is_train:
             self.netG.train()
 
-            # loss
-            loss_type = train_opt['pixel_criterion']
-            if loss_type == 'l1':
-                self.cri_pix = nn.L1Loss().to(self.device)
-            elif loss_type == 'l2':
-                self.cri_pix = nn.MSELoss().to(self.device)
-            elif loss_type == 'cb':
-                self.cri_pix = CharbonnierLoss().to(self.device)
+            if train_opt['pixel_weight'] > 0:
+                l_pix_type = train_opt['pixel_criterion']
+                if l_pix_type == 'l1':
+                    self.cri_pix = nn.L1Loss().to(self.device)
+                elif l_pix_type == 'l2':
+                    self.cri_pix = nn.MSELoss().to(self.device)
+                elif l_pix_type == 'cb':
+                    self.cri_pix = CharbonnierLoss().to(self.device)
+                else:
+                    raise NotImplementedError('Loss type [{:s}] not recognized.'.format(l_pix_type))
+                self.l_pix_w = train_opt['pixel_weight']
             else:
-                raise NotImplementedError('Loss type [{:s}] is not recognized.'.format(loss_type))
-            self.l_pix_w = train_opt['pixel_weight']
+                logger.info('Remove pixel loss.')
+                self.cri_pix = None
+
+            # G feature loss
+            if train_opt['feature_weight'] > 0:
+
+                self.netF = networks.define_F(opt, use_bn=False).to(self.device)
+                if opt['dist']:
+                    pass  # do not need to use DistributedDataParallel for netF
+                else:
+                    self.netF = DataParallel(self.netF)
+
+                l_fea_type = train_opt['feature_criterion']
+                if l_fea_type == 'l1':
+                    self.cri_fea = nn.L1Loss().to(self.device)
+                elif l_fea_type == 'l2':
+                    self.cri_fea = nn.MSELoss().to(self.device)
+                elif 'p-' in l_fea_type:  # perceptual-charbonnier
+                    crit = l_fea_type.replace('p-', '')
+                    self.cri_fea = PerceptualLoss(crit=crit).to(self.device)
+                else:
+                    raise NotImplementedError('Loss type [{:s}] not recognized.'.format(l_fea_type))
+                self.l_fea_w = train_opt['feature_weight']
+            else:
+                logger.info('Remove feature loss.')
+                self.cri_fea = None
+            if train_opt['edge_weight'] > 0:
+                l_edge_type = train_opt['edge_criterion']
+                self.cri_edge = EdgeLoss(crit=l_edge_type, device=self.device).to(self.device)
+                self.l_edge_w = train_opt['edge_weight']
+            else:
+                logger.info('Remove Edge loss.')
+                self.cri_edge = None
 
             # optimizers
-            wd_G = train_opt['weight_decay_G'] if train_opt['weight_decay_G'] else 0
             optim_params = []
             for k, v in self.netG.named_parameters():  # can optimize for a part of the model
                 if v.requires_grad:
@@ -56,9 +89,21 @@ class SRModel(BaseModel):
                 else:
                     if self.rank <= 0:
                         logger.warning('Params [{:s}] will not optimize.'.format(k))
-            self.optimizer_G = torch.optim.Adam(optim_params, lr=train_opt['lr_G'],
-                                                weight_decay=wd_G,
-                                                betas=(train_opt['beta1'], train_opt['beta2']))
+
+            optim_G = train_opt.get('optim_G', 'adam')
+            if optim_G == 'adam':
+                wd_G = train_opt['weight_decay_G'] if train_opt['weight_decay_G'] else 0
+                self.optimizer_G = torch.optim.Adam(optim_params, lr=train_opt['lr_G'],
+                                                    weight_decay=wd_G,
+                                                    betas=(train_opt['beta1_G'], train_opt['beta2_G']))
+            elif optim_G == 'adamW':
+                wd_G = train_opt['weight_decay_G'] if train_opt['weight_decay_G'] else 0
+                self.optimizer_G = torch.optim.AdamW(optim_params, lr=train_opt['lr_G'],
+                                                    weight_decay=wd_G,
+                                                    betas=(train_opt['beta1_G'], train_opt['beta2_G']))
+            else:
+                raise NotImplementedError('Unrecognized Generator optimizer')
+
             self.optimizers.append(self.optimizer_G)
 
             # schedulers
@@ -89,12 +134,36 @@ class SRModel(BaseModel):
     def optimize_parameters(self, step):
         self.optimizer_G.zero_grad()
         self.fake_H = self.netG(self.var_L)
-        l_pix = self.l_pix_w * self.cri_pix(self.fake_H, self.real_H)
-        l_pix.backward()
+        l_g_total = 0
+        if self.cri_pix:  # pixel loss
+            l_g_pix = self.l_pix_w * self.cri_pix(self.fake_H, self.real_H)
+            l_g_total += l_g_pix
+            self.log_dict['l_pix'] = l_g_pix.item()
+
+        if self.opt['train']['feature_criterion'] == 'p-cb':  # perceptual with intermediate layers
+            real_out, real_intermediates = self.netF(self.real_H)
+            fake_out, fake_intermediates = self.netF(self.fake_H)
+            fake_features = fake_intermediates + [fake_out]
+            real_features = real_intermediates + [real_out]
+            l_g_fea = self.l_fea_w * self.cri_fea(fake_features, real_features)
+            l_g_total += l_g_fea
+            self.log_dict['l_g_fea'] = l_g_fea.item()
+
+        elif self.cri_fea:  # feature loss only last feature
+            real_fea = self.netF(self.var_H).detach()
+            fake_fea = self.netF(self.fake_H)
+            l_g_fea = self.l_fea_w * self.cri_fea(fake_fea, real_fea)
+            l_g_total += l_g_fea
+            self.log_dict['l_g_fea'] = l_g_fea.item()
+
+        if self.cri_edge:
+            l_g_edge = self.l_edge_w * self.cri_edge(self.fake_H, self.real_H)
+            l_g_total += l_g_edge
+            self.log_dict['l_g_edge'] = l_g_edge.item()
+        l_g_total.backward()
         self.optimizer_G.step()
 
         # set log
-        self.log_dict['l_pix'] = l_pix.item()
 
     def test(self):
         self.netG.eval()
