@@ -111,7 +111,7 @@ class SRGANModel(BaseModel):
                                                     betas=(train_opt['beta1_G'], train_opt['beta2_G']))
             elif optim_G == 'adamW':
                 wd_G = train_opt['weight_decay_G'] if train_opt['weight_decay_G'] else 0
-                self.optimizer_G = torch.optim.Adam(optim_params, lr=train_opt['lr_G'],
+                self.optimizer_G = torch.optim.AdamW(optim_params, lr=train_opt['lr_G'],
                                                     weight_decay=wd_G,
                                                     betas=(train_opt['beta1_G'], train_opt['beta2_G']))
             else:
