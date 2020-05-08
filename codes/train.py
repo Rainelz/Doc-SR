@@ -154,7 +154,7 @@ def main():
         if opt['dist']:
             train_sampler.set_epoch(epoch)
         for _, train_data in enumerate(train_loader):
-            
+
             current_step += 1
             if current_step > total_iters:
                 break
@@ -222,28 +222,6 @@ def main():
                     # tensorboard logger
                     if opt['use_tb_logger'] and 'debug' not in opt['name']:
                         tb_logger.add_scalar('psnr', avg_psnr, current_step)
-
-                    if opt['datasets'].get('test', None) and current_step % opt['train']['val_freq'] == 0:
-                        pbar = util.ProgressBar(len(test_loader))
-                        for test_data in test_loader:
-                            torch.cuda.empty_cache()
-                            img_name = os.path.splitext(os.path.basename(test_data['LQ_path'][0]))[0]
-                            img_dir = os.path.join(opt['path']['test_images'], img_name)
-                            util.mkdir(img_dir)
-                            model.feed_data(test_data, need_GT=False)
-                            model.test()
-                            visuals = model.get_current_visuals()
-                            sr_img = util.tensor2img(visuals['rlt'])  # uint8
-
-                            # Save SR images for reference
-                            save_img_path = os.path.join(img_dir,
-                                                         '{:s}_{:d}.png'.format(img_name, current_step))
-                            util.save_img(sr_img, save_img_path)
-
-                            pbar.update('Test {}'.format(img_name))
-
-                            # Log sr img
-                            tb_logger.add_image(img_name, visuals['rlt'], global_step=current_step)
 
                 else:  # video restoration validation
                     if opt['dist']:
@@ -327,7 +305,29 @@ def main():
                             tb_logger.add_scalar('psnr_avg', psnr_total_avg, current_step)
                             for k, v in psnr_rlt_avg.items():
                                 tb_logger.add_scalar(k, v, current_step)
+            ### test
+            if opt['datasets'].get('test', None) and current_step % opt['train']['test_freq'] == 0:
+                pbar = util.ProgressBar(len(test_loader))
+                for test_data in test_loader:
+                    torch.cuda.empty_cache()
+                    img_name = os.path.splitext(os.path.basename(test_data['LQ_path'][0]))[0]
+                    img_dir = os.path.join(opt['path']['test_images'], img_name)
+                    util.mkdir(img_dir)
+                    model.feed_data(test_data, need_GT=False)
+                    model.test()
+                    visuals = model.get_current_visuals()
+                    sr_img = util.tensor2img(visuals['rlt'])  # uint8
 
+                    # Save SR images for reference
+                    save_img_path = os.path.join(img_dir,
+                                                 '{:s}_{:d}.png'.format(img_name, current_step))
+                    util.save_img(sr_img, save_img_path)
+
+                    pbar.update('Test {}'.format(img_name))
+
+                    # Log sr img
+                    # if opt['use_tb_logger'] and 'debug' not in opt['name']:
+                    #     tb_logger.add_image(img_name, visuals['rlt'], global_step=current_step)
             #### save models and training states
             if current_step % opt['logger']['save_checkpoint_freq'] == 0:
                 if rank <= 0:
