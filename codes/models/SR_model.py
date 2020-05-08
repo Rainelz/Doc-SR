@@ -138,7 +138,7 @@ class SRModel(BaseModel):
         if self.cri_pix:  # pixel loss
             l_g_pix = self.l_pix_w * self.cri_pix(self.fake_H, self.real_H)
             l_g_total += l_g_pix
-            self.log_dict['l_pix'] = l_g_pix.item()
+            self.log_dict['l_g_pix'] = l_g_pix.item()
 
         if self.opt['train']['feature_criterion'] == 'p-cb':  # perceptual with intermediate layers
             real_out, real_intermediates = self.netF(self.real_H)
