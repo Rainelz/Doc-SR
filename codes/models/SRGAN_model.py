@@ -177,6 +177,12 @@ class SRGANModel(BaseModel):
             p.requires_grad = False
 
         self.optimizer_G.zero_grad()
+        if step <= self.D_init_iters:
+            for p in self.netG.parameters():
+                p.requires_grad = False
+        else:
+            for p in self.netG.parameters():
+                p.requires_grad = True
         self.fake_H = self.netG(self.var_L)
 
         l_g_total = 0
