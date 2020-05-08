@@ -61,6 +61,7 @@ class LQGTDataset(data.Dataset):
             resolution = [int(s) for s in self.sizes_LQ[index].split('_')
                           ] if self.data_type == 'lmdb' else None
             img_LQ = util.read_img(self.LQ_env, LQ_path, resolution)
+
         else:  # down-sampling on-the-fly
             # randomly scale during training
             if self.opt['phase'] == 'train':
@@ -84,10 +85,22 @@ class LQGTDataset(data.Dataset):
             if img_LQ.ndim == 2:
                 img_LQ = np.expand_dims(img_LQ, axis=2)
 
+        rand_rot = self.opt.get('rand_rot', None)
+        if rand_rot:
+            if random.random() < 0.2:
+
+                angle = np.random.uniform(-rand_rot, rand_rot)
+                angle = np.round(angle, decimals=2)
+                img_LQ, img_GT = util.rotate(img_LQ, img_GT, scale=self.opt['scale'], angle=angle)
+
+
         if self.opt['phase'] == 'train':
+            if img_GT.ndim == 2:
+                img_GT = np.expand_dims(img_GT, axis=2)
             # if the image size is too small
             H, W, _ = img_GT.shape
             if H < GT_size or W < GT_size:
+                print("Resizing image GT. is this expected?")
                 img_GT = cv2.resize(img_GT, (GT_size, GT_size), interpolation=cv2.INTER_LINEAR)
                 # using matlab imresize
                 img_LQ = util.imresize_np(img_GT, 1 / scale, True)

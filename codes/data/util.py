@@ -161,7 +161,74 @@ def index_generation(crt_i, max_n, N, padding='reflection'):
 # image processing
 # process on numpy image
 ####################
+def rotate(imageLQ, imageGT, scale, angle, border_value=0):
+    """Rotate an image.
+    Args:
+        image (ndarray): Image to be rotated.
+        angle (float): Rotation angle in degrees, positive values mean
+            clockwise rotation.
+        
+    Returns:
+        ndarray: The rotated image.
+    """
 
+    # (h, w) = image.shape[:2]
+    h, w = imageLQ.shape[:2]
+        # center = (w // 2, h // 2)
+    center = w * 0.5, h * 0.5
+
+    matrix = cv2.getRotationMatrix2D(center, -angle, scale=1)
+
+    cos = np.abs(matrix[0, 0])
+    sin = np.abs(matrix[0, 1])
+
+    # find the new width and height of the expanded image
+    expanded_w = int(round(h * sin + w * cos))
+    expanded_h = int(round(h * cos + w * sin))
+    # padding values
+    top_diff = (expanded_h - h) // 2
+    left_diff = (expanded_w - w) // 2
+    expanded = cv2.copyMakeBorder( imageLQ, top_diff, top_diff, left_diff, left_diff, cv2.BORDER_CONSTANT,value=0)
+    
+    center = (expanded_w * 0.5, expanded_h  * 0.5)
+    matrix = cv2.getRotationMatrix2D(center, -angle, scale=1)
+    rotated = cv2.warpAffine(expanded, matrix, (expanded_w, expanded_h), flags = cv2.INTER_CUBIC, borderValue=0)
+
+    rotated_w = math.ceil(w * cos) # original image rotated width
+    rotated_h = math.ceil(h * cos)
+    w_off = expanded_w - rotated_w 
+    h_off = expanded_h - rotated_h
+    if random.random() < 0.5:
+        w_off = int(w_off - round(h_off * sin))
+    else:
+        h_off = int(h_off - round(w_off * sin))
+
+    #h_off = int(h_off - floor(w_off*sin)) +1
+    rotated_LQ = rotated[h_off:h-h_off, w_off:w-w_off]
+
+    #---------------
+
+    h, w = imageGT.shape[:2]
+    center = w * 0.5, h * 0.5
+
+    # find the new width and height of the expanded image
+    expanded_w = expanded_w * scale
+    expanded_h = expanded_h * scale
+    # padding values
+    top_diff = (expanded_h - h) // 2
+    left_diff = (expanded_w - w) // 2
+    expanded = cv2.copyMakeBorder( imageGT, top_diff, top_diff, left_diff, left_diff, cv2.BORDER_CONSTANT,value=0)
+    center = (expanded_w * 0.5, expanded_h  * 0.5)
+
+    matrix = cv2.getRotationMatrix2D(center, -angle, scale=1)
+    rotated = cv2.warpAffine(expanded, matrix, (expanded_w, expanded_h), flags = cv2.INTER_CUBIC, borderValue=0)
+   
+    w_off = w_off * scale
+    h_off = h_off * scale
+   
+    rotated_HQ = rotated[h_off:h-h_off, w_off:w-w_off]
+
+    return rotated_LQ, rotated_HQ
 
 def augment(img_list, hflip=True, rot=True):
     """horizontal flip OR rotate (0, 90, 180, 270 degrees)"""
