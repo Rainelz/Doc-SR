@@ -1,0 +1,88 @@
+#### general settings
+name: Doc_sr_plain
+use_tb_logger: true
+model: sr
+distortion: sr
+scale: 2
+gpu_ids: [0,1]
+
+#### datasets
+datasets:
+  train:
+    name: Shutter
+    mode: LQGT
+    dataroot_GT: /opt/app/data/train/GTx2.lmdb
+    dataroot_LQ: /opt/app/data/train/LRx2_clean.lmdb
+
+    use_shuffle: true
+    n_workers: 4  # per GPU
+    batch_size: 8
+    GT_size: 256
+    use_flip: false
+    use_rot: false
+    color: gray
+  val:
+    name: Shutter_val
+    mode: LQGT
+    n_workers: 4  # per GPU
+    dataroot_GT: /opt/app/data/val/GTx2.lmdb
+    dataroot_LQ: /opt/app/data/val/LRx2_spoiled.lmdb
+    color: gray
+#### network structures
+network_G:
+  which_model_G: RRDBNet
+  upsample_type: interpolate
+  in_nc: 1
+  out_nc: 1
+  nf: 64
+  nb: 23
+
+network_F:
+  which_model_F: efficientnet-b0-gray
+
+  #which_model_F: VGG
+  pretrained: /opt/app/data/efficient-net/b0-gray-16-imnet-advprop-nocrop/efficientnet-b0-gray.model_best.pth.tar
+  in_nc: 1
+  use_bn: false
+  use_input_norm: true
+#### path
+path:
+
+  experiments_root: /opt/app/data/doc_sr/experiments/plain/x2
+  resume_state: ~
+
+#### training settings: learning rate scheme, loss
+train:
+  lr_G: !!float 2e-4
+  weight_decay_G: 0
+  beta1_G: 0.9
+  beta2_G: 0.99
+
+  lr_scheme: MultiStepLR
+
+  niter: 600000
+  warmup_iter: -1  # no warm up
+        #   2e-4,   1e-4, 5e-5, 2.5e-5, 1.25e-5, 6e-6, 3e-6, 1.5e-6
+  lr_steps: [30000, 60000, 90000, 150000, 200000, 250000, 350000, 450000]
+  lr_gamma: 0.5
+
+  pixel_criterion: cb
+  pixel_weight: !!float 1
+  feature_criterion: p-cb
+  feature_weight: !!float 1
+  edge_criterion: l2
+  edge_weight: !!float 5e-2
+  #gan_type: ragan  # gan | ragan
+  #gan_weight: !!float 5e-3
+
+#  D_update_ratio: 1
+#  D_init_iters: 0
+
+  manual_seed: 10
+  val_freq: !!float 1e3
+
+#### logger
+logger:
+  print_freq: 100
+  save_checkpoint_freq: !!float 1e3
+#point_freq: !!float 1e3
