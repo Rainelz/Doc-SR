@@ -18,11 +18,13 @@ class CharbonnierLoss(nn.Module):
 
 
 # Define GAN loss: [vanilla | lsgan | wgan-gp]
+# for flood_level explanation see https://arxiv.org/pdf/2002.08709.pdf
 class GANLoss(nn.Module):
-    def __init__(self, gan_type, real_label_val=1.0, fake_label_val=0.0, label_smooth=False):
+    def __init__(self, gan_type, real_label_val=1.0, fake_label_val=0.0, label_smooth=False, flood_level=0):
         super(GANLoss, self).__init__()
         if label_smooth:
             assert real_label_val == 1
+        self.flood_level = flood_level
 
         self.gan_type = gan_type.lower()
         self.real_label_val = real_label_val
@@ -61,6 +63,8 @@ class GANLoss(nn.Module):
     def forward(self, input, target_is_real, is_updating_D=False):
         target_label = self.get_target_label(input, target_is_real, is_updating_D)
         loss = self.loss(input, target_label)
+        if is_updating_D:
+            loss = (loss - self.flood_level).abs() + self.flood_level
         return loss
 
 

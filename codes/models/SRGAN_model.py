@@ -87,7 +87,8 @@ class SRGANModel(BaseModel):
                 self.cri_edge = None
             # GD gan loss
             label_smooth = opt['network_D'].get('label_smooth', False)
-            self.cri_gan = GANLoss(train_opt['gan_type'], 1.0, 0.0, label_smooth=label_smooth).to(self.device)
+            flood_level = opt['network_D'].get('flood_level', 0)
+            self.cri_gan = GANLoss(train_opt['gan_type'], 1.0, 0.0, label_smooth=label_smooth, flood_level=flood_level).to(self.device)
             self.l_gan_w = train_opt['gan_weight']
             # D_update_ratio and D_init_iters
             self.D_update_ratio = train_opt['D_update_ratio'] if train_opt['D_update_ratio'] else 1
@@ -232,7 +233,7 @@ class SRGANModel(BaseModel):
             l_d_real.backward()
             # fake
             pred_d_fake = self.netD(self.fake_H.detach())  # detach to avoid BP to G
-            l_d_fake = self.cri_gan(pred_d_fake, False)
+            l_d_fake = self.cri_gan(pred_d_fake, False, is_updating_D=True)
             l_d_fake.backward()
         elif self.opt['train']['gan_type'] == 'ragan':
             # pred_d_real = self.netD(self.var_ref)
@@ -246,7 +247,7 @@ class SRGANModel(BaseModel):
             l_d_real = self.cri_gan(pred_d_real - torch.mean(pred_d_fake), True, is_updating_D=True) * 0.5
             l_d_real.backward()
             pred_d_fake = self.netD(self.fake_H.detach())
-            l_d_fake = self.cri_gan(pred_d_fake - torch.mean(pred_d_real.detach()), False) * 0.5
+            l_d_fake = self.cri_gan(pred_d_fake - torch.mean(pred_d_real.detach()), False, is_updating_D=True) * 0.5
             l_d_fake.backward()
         self.optimizer_D.step()
 
